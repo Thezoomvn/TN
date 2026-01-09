@@ -221,22 +221,28 @@ if st.session_state.quiz_data:
     # Mở Form
     with st.form("quiz_form"):
         # Vòng lặp hiện câu hỏi
+      # --- SỬA LẠI PHẦN HIỂN THỊ TRONG VÒNG LẶP ---
         for i, q in enumerate(st.session_state.quiz_data):
-            # Hiển thị câu hỏi dạng thẻ (Card)
-            st.markdown(f"""
-            <div class="question-card">
-                <h4>Câu {i+1}: {q['question']}</h4>
-            </div>
-            """, unsafe_allow_html=True)
             
-            # Hiện ô chọn đáp án
+            # BƯỚC 1: Mở thẻ DIV (Cái vỏ hộp đẹp)
+            st.markdown('<div class="question-card">', unsafe_allow_html=True)
+            
+            # BƯỚC 2: In nội dung (Cái ruột)
+            # Dùng st.markdown ở đây thì LaTeX ($...$) mới hiện ra đẹp được!
+            # Lưu ý: Mình thêm dấu #### để làm tiêu đề nhỏ cho đẹp
+            st.markdown(f"#### Câu {i+1}: {q['question']}")
+            
+            # BƯỚC 3: Đóng thẻ DIV
+            st.markdown('</div>', unsafe_allow_html=True)
+            
+            # Phần nút chọn đáp án (Giữ nguyên)
             st.session_state.user_answers[i] = st.radio(
                 "Lựa chọn của bạn:", 
                 q['options'], 
                 key=f"rad_{i}", 
                 label_visibility="collapsed"
             )
-            st.write("") # Khoảng cách cho thoáng
+            st.write("") # Khoảng cách
 
         st.markdown("<br>", unsafe_allow_html=True)
         
@@ -275,6 +281,7 @@ if st.session_state.submitted:
         st.markdown(f"<h2 style='text-align:center; color:#28a745;'>Xuất sắc! {score}/{total}</h2>", unsafe_allow_html=True)
     else:
         st.markdown(f"<h3 style='text-align:center;'>Bạn đạt {score}/{total} điểm</h3>", unsafe_allow_html=True)
+
 
 
 
