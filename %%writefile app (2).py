@@ -13,84 +13,97 @@ st.set_page_config(page_title="AI Quiz Pro", page_icon="🛡️", layout="center
 # --- GIAO DIỆN TƯƠNG PHẢN CAO (HIGH CONTRAST) ---
 # Dễ đọc, rõ ràng, sắc nét
 # ==============================================================================
+# ==============================================================================
+# --- GIAO DIỆN DARK MODE (CHẾ ĐỘ TỐI) ---
+# Bảo vệ mắt, êm dịu, tương phản tốt
+# ==============================================================================
 MODERN_UI_STYLES = """
     <style>
-    /* 1. Nhúng Font chữ Inter (ưu tiên nét đậm 600) */
-    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap');
+    /* 1. Nhúng Font chữ hiện đại */
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap');
     
     html, body, [class*="css"] {
         font-family: 'Inter', sans-serif;
-        color: #000000 !important; /* Bắt buộc chữ màu ĐEN tuyệt đối */
+        color: #e0e6ed !important; /* Chữ màu trắng xám nhạt (dịu mắt) */
     }
 
-    /* 2. Nền trang web (Màu sáng nhẹ để dịu mắt nhưng vẫn tôn chữ) */
+    /* 2. Nền trang web (Màu Xám Than Đậm - Deep Charcoal) */
     .stApp {
-        background-color: #f0f2f6;
+        background-color: #0f1116; 
     }
 
-    /* 3. Thẻ câu hỏi (Nền Trắng Tinh - Chữ Đen Đậm) */
+    /* 3. Thẻ câu hỏi (Màu nền sáng hơn nền web một chút để nổi bật) */
     .question-card {
-        background-color: #ffffff;
+        background-color: #1e2330; /* Xanh đen nhạt */
         padding: 25px;
-        border-radius: 12px;
-        border: 2px solid #000000; /* Viền đen bao quanh cho rõ */
-        box-shadow: 4px 4px 0px #000000; /* Hiệu ứng bóng cứng (Retro) rất dễ nhìn */
+        border-radius: 15px;
+        border: 1px solid #2e3440; /* Viền xám mờ */
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3); /* Bóng đổ tối */
         margin-bottom: 25px;
     }
     
     .question-card h4 {
-        color: #000000 !important;
-        font-weight: 800 !important; /* Chữ siêu đậm */
-        font-size: 20px !important;
-        line-height: 1.5;
+        color: #ffffff !important; /* Tiêu đề câu hỏi màu trắng tinh */
+        font-weight: 600;
+        margin-top: 0;
     }
 
     /* 4. Ô chọn đáp án (Radio) */
     .stRadio p {
-        font-size: 18px !important; /* Tăng cỡ chữ đáp án */
-        color: #000000 !important;
-        font-weight: 600 !important;
-    }
-    
-    /* 5. Nút bấm (Màu đen - Chữ trắng -> Tương phản cực cao) */
-    div.stButton > button {
-        background-color: #000000 !important; /* Nút màu đen */
-        color: #ffffff !important; /* Chữ trắng */
-        border: 2px solid #000000;
-        padding: 12px 30px;
-        border-radius: 8px;
-        font-weight: bold;
+        color: #c0caf5 !important; /* Màu chữ đáp án hơi xanh nhạt */
         font-size: 16px;
-        transition: all 0.2s;
     }
-    div.stButton > button:hover {
-        background-color: #333333 !important; /* Di chuột vào thì xám đi chút */
-        transform: translateY(-2px);
+    /* Làm sáng ô radio khi di chuột vào */
+    .stRadio > div:hover {
+        background-color: #292e42;
+        border-radius: 8px;
     }
 
-    /* 6. Hộp kết quả */
+    /* 5. Nút bấm (Gradient Neon - Nổi bật trên nền tối) */
+    div.stButton > button {
+        background: linear-gradient(90deg, #7928ca, #ff0080); /* Tím hồng Neon */
+        color: white !important;
+        border: none;
+        padding: 12px 24px;
+        border-radius: 8px;
+        font-weight: bold;
+        transition: all 0.3s;
+    }
+    div.stButton > button:hover {
+        transform: scale(1.05);
+        box-shadow: 0 0 15px rgba(255, 0, 128, 0.5); /* Hiệu ứng phát sáng */
+    }
+
+    /* 6. Hộp kết quả (Tối ưu cho nền đen) */
     .result-box {
-        padding: 20px;
+        padding: 15px;
         border-radius: 8px;
         margin-top: 15px;
-        font-weight: bold;
-        color: #000000; /* Chữ đen trong hộp kết quả */
-        border: 2px solid #000000;
+        font-weight: 500;
     }
     .correct-box {
-        background-color: #a3ffac; /* Xanh lá sáng */
+        background-color: #052c16; /* Nền xanh lá cực đậm */
+        color: #75b798; /* Chữ xanh lá sáng */
+        border: 1px solid #0f5132;
     }
     .incorrect-box {
-        background-color: #ffadad; /* Đỏ sáng */
+        background-color: #2c0b0e; /* Nền đỏ cực đậm */
+        color: #ea868f; /* Chữ đỏ hồng sáng */
+        border: 1px solid #842029;
     }
     
+    /* 7. Các khung nhập liệu (Input) */
+    .stTextInput input, .stTextArea textarea, .stSelectbox div {
+        background-color: #1a1b26 !important;
+        color: white !important;
+        border: 1px solid #414868 !important;
+    }
+
     /* Tiêu đề chính */
     h1 {
-        color: #000000 !important;
-        text-transform: uppercase;
+        color: #ffffff !important;
         text-align: center;
-        font-weight: 900;
-        letter-spacing: 2px;
+        text-shadow: 0 0 10px rgba(255,255,255,0.1);
     }
     </style>
 """
@@ -133,7 +146,7 @@ def generate_quiz(topic, num, diff):
         return []
 
 # --- GIAO DIỆN ---
-st.title("🛡️ Trắc Nghiệm (Secure Mode)")
+st.title("🛡️HNNTĐN")
 
 with st.sidebar:
     st.header("Trạng thái hệ thống")
@@ -225,6 +238,7 @@ if st.session_state.submitted:
         st.markdown(f"<h2 style='text-align:center; color:#28a745;'>Xuất sắc! {score}/{total}</h2>", unsafe_allow_html=True)
     else:
         st.markdown(f"<h3 style='text-align:center;'>Bạn đạt {score}/{total} điểm</h3>", unsafe_allow_html=True)
+
 
 
 
