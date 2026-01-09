@@ -125,6 +125,7 @@ def get_api_key():
     return ""
 
 # --- HÀM GỌI GEMINI ---
+# --- HÀM GỌI GEMINI (ĐÃ CẤU HÌNH LATEX CHO TOÁN HỌC) ---
 def generate_quiz(topic, num, diff):
     key = get_api_key()
     if not key:
@@ -133,16 +134,38 @@ def generate_quiz(topic, num, diff):
     
     try:
         genai.configure(api_key=key)
-        # Dùng model chuẩn 1.5 flash
-        model = genai.GenerativeModel('gemini-2.5-flash', generation_config={"response_mime_type": "application/json"})
+        model = genai.GenerativeModel('gemini-1.5-flash', generation_config={"response_mime_type": "application/json"})
         
-        prompt = f"""Tạo {num} câu trắc nghiệm JSON về "{topic}", độ khó {diff}. 
-        Format: [{{ "question": "...", "options": ["A","B"], "correct_answer": "A", "explanation": "..." }}]"""
+        # --- CÂU LỆNH PROMPT MỚI (THÊM YÊU CẦU LATEX) ---
+        prompt = f"""
+        Bạn là giáo viên Toán/Lý/Hóa giỏi. Hãy tạo {num} câu trắc nghiệm JSON về "{topic}", độ khó {diff}.
+        
+        QUY TẮC QUAN TRỌNG VỀ ĐỊNH DẠNG TOÁN HỌC (BẮT BUỘC):
+        1.  Nếu câu hỏi có công thức toán, phân số, mũ, căn bậc hai, tích phân... HÃY SỬ DỤNG MÃ LATEX.
+        2.  Mã LaTeX phải được đặt giữa 2 dấu $$.
+            - Ví dụ Phân số: Viết $\\frac{{1}}{{2}}$ thay vì 1/2.
+            - Ví dụ Mũ: Viết $x^2$ thay vì x^2.
+            - Ví dụ Căn: Viết $\\sqrt{{x}}$ thay vì can(x).
+            - Ví dụ Hóa học: $H_2O$, $CO_2$.
+        
+        3.  Đừng dùng các ký tự trần như ^ hay / nếu đó là biểu thức toán học phức tạp.
+
+        OUTPUT FORMAT (JSON Array):
+        [
+            {{
+                "question": "Nội dung câu hỏi (có chứa LaTeX $\\frac{{a}}{{b}}$ nếu cần)...",
+                "options": ["A. $x^2$", "B. $x^3$", "C. $x^4$", "D. $x^5$"],
+                "correct_answer": "Đáp án đúng (Copy y nguyên text)",
+                "explanation": "Giải thích chi tiết (dùng LaTeX nếu giải thích công thức)."
+            }}
+        ]
+        """
+        # ----------------------------------------------------------
         
         response = model.generate_content(prompt)
         return json.loads(response.text)
     except Exception as e:
-        st.error(f"Lỗi: {str(e)}")
+        st.error(f"Lỗi khi tạo câu hỏi: {str(e)}")
         return []
 
 # --- GIAO DIỆN ---
@@ -238,6 +261,7 @@ if st.session_state.submitted:
         st.markdown(f"<h2 style='text-align:center; color:#28a745;'>Xuất sắc! {score}/{total}</h2>", unsafe_allow_html=True)
     else:
         st.markdown(f"<h3 style='text-align:center;'>Bạn đạt {score}/{total} điểm</h3>", unsafe_allow_html=True)
+
 
 
 
