@@ -96,7 +96,6 @@ with st.sidebar:
         # -> Key không bao giờ được gửi xuống trình duyệt
         api_key = FIXED_API_KEY
         st.success("✅ Đã kích hoạt API Key bản quyền.")
-        st.info("Key được bảo mật an toàn trên Server (F12 không thể thấy).")
     else:
         # TRƯỜNG HỢP 2: Chưa có Key -> Mới hiện ô nhập để người dùng tự điền
         api_key = st.text_input("Nhập Gemini API Key:", type="password")
@@ -194,4 +193,5 @@ else:
         if score == total:
 
             st.balloons()
+
 
