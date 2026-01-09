@@ -125,7 +125,7 @@ def get_api_key():
     return ""
 
 # --- HÀM GỌI GEMINI ---
-# --- HÀM GỌI GEMINI (ĐÃ CẤU HÌNH LATEX CHO TOÁN HỌC) ---
+# --- HÀM GỌI GEMINI (ĐÃ SỬA LỖI JSON LATEX) ---
 def generate_quiz(topic, num, diff):
     key = get_api_key()
     if not key:
@@ -134,38 +134,52 @@ def generate_quiz(topic, num, diff):
     
     try:
         genai.configure(api_key=key)
-        model = genai.GenerativeModel('gemini-2.5-flash', generation_config={"response_mime_type": "application/json"})
+        model = genai.GenerativeModel('gemini-1.5-flash', generation_config={"response_mime_type": "application/json"})
         
-        # --- CÂU LỆNH PROMPT MỚI (THÊM YÊU CẦU LATEX) ---
+        # --- CÂU LỆNH ĐÃ SỬA ĐỔI ĐỂ KHẮC PHỤC LỖI \ESCAPE ---
         prompt = f"""
         Bạn là giáo viên Toán/Lý/Hóa giỏi. Hãy tạo {num} câu trắc nghiệm JSON về "{topic}", độ khó {diff}.
         
-        QUY TẮC QUAN TRỌNG VỀ ĐỊNH DẠNG TOÁN HỌC (BẮT BUỘC):
-        1.  Nếu câu hỏi có công thức toán, phân số, mũ, căn bậc hai, tích phân... HÃY SỬ DỤNG MÃ LATEX.
-        2.  Mã LaTeX phải được đặt giữa 2 dấu $$.
-            - Ví dụ Phân số: Viết $\\frac{{1}}{{2}}$ thay vì 1/2.
-            - Ví dụ Mũ: Viết $x^2$ thay vì x^2.
-            - Ví dụ Căn: Viết $\\sqrt{{x}}$ thay vì can(x).
-            - Ví dụ Hóa học: $H_2O$, $CO_2$.
-        
-        3.  Đừng dùng các ký tự trần như ^ hay / nếu đó là biểu thức toán học phức tạp.
+        QUY TẮC QUAN TRỌNG VỀ ĐỊNH DẠNG (BẮT BUỘC TUÂN THỦ):
+        1.  Output phải là JSON hợp lệ.
+        2.  VỚI CÔNG THỨC TOÁN (LATEX):
+            - Bắt buộc đặt trong dấu $$.
+            - **QUAN TRỌNG:** Vì đây là định dạng JSON, bạn phải dùng **HAI DẤU GẠCH CHÉO** (Double Backslash) cho các lệnh LaTeX.
+            - Ví dụ SAI: "$\frac{{1}}{{2}}$" (Sẽ gây lỗi JSON)
+            - Ví dụ ĐÚNG: "$\\frac{{1}}{{2}}$" (Phải có 2 dấu \\)
+            - Tương tự: $\\sqrt{{x}}$, $x^2$, $\\pi$, $\\approx$.
 
         OUTPUT FORMAT (JSON Array):
         [
             {{
-                "question": "Nội dung câu hỏi (có chứa LaTeX $\\frac{{a}}{{b}}$ nếu cần)...",
-                "options": ["A. $x^2$", "B. $x^3$", "C. $x^4$", "D. $x^5$"],
+                "question": "Nội dung câu hỏi (Ví dụ: Tính giá trị của biểu thức $\\frac{{a}}{{b}}$)...",
+                "options": ["A. $x^2$", "B. $\\sqrt{{x}}$", "C. $100\\%$", "D. $\\pi$"],
                 "correct_answer": "Đáp án đúng (Copy y nguyên text)",
-                "explanation": "Giải thích chi tiết (dùng LaTeX nếu giải thích công thức)."
+                "explanation": "Giải thích chi tiết (Dùng 2 dấu gạch chéo cho LaTeX: $\\Delta = b^2 - 4ac$)."
             }}
         ]
         """
-        # ----------------------------------------------------------
         
         response = model.generate_content(prompt)
-        return json.loads(response.text)
+        
+        # Xử lý trường hợp Gemini vẫn trả về lỗi (Phòng ngừa)
+        text_response = response.text
+        # Nếu model lỡ trả về 1 dấu \, ta thử replace thủ công một số lệnh phổ biến (Mẹo fix nhanh)
+        ifInvalid = False
+        try:
+            return json.loads(text_response)
+        except:
+            # Nếu lỗi, thử sửa chuỗi string thủ công trước khi parse
+            text_response = text_response.replace(r'\frac', r'\\frac') \
+                                         .replace(r'\sqrt', r'\\sqrt') \
+                                         .replace(r'\times', r'\\times') \
+                                         .replace(r'\cdot', r'\\cdot')
+            return json.loads(text_response)
+
     except Exception as e:
         st.error(f"Lỗi khi tạo câu hỏi: {str(e)}")
+        # In ra text gốc để debug nếu cần
+        # st.text(response.text) 
         return []
 
 # --- GIAO DIỆN ---
@@ -261,6 +275,7 @@ if st.session_state.submitted:
         st.markdown(f"<h2 style='text-align:center; color:#28a745;'>Xuất sắc! {score}/{total}</h2>", unsafe_allow_html=True)
     else:
         st.markdown(f"<h3 style='text-align:center;'>Bạn đạt {score}/{total} điểm</h3>", unsafe_allow_html=True)
+
 
 
 
