@@ -5,15 +5,102 @@ import json
 # --- CẤU HÌNH TRANG ---
 st.set_page_config(page_title="AI Quiz Pro", page_icon="🛡️", layout="centered")
 
-# --- CSS GIAO DIỆN ---
-st.markdown("""
+# ==============================================================================
+# --- ĐOẠN CODE GIAO DIỆN HIỆN ĐẠI (CSS) ---
+# Copy và dán đoạn này vào file app.py của bạn
+# ==============================================================================
+MODERN_UI_STYLES = """
     <style>
-    .stApp {background-color: #f0f2f6;}
-    .success-box {padding:15px; background:#d1e7dd; color:#0f5132; border-radius:10px; margin-bottom:10px;}
-    .error-box {padding:15px; background:#f8d7da; color:#842029; border-radius:10px; margin-bottom:10px;}
-    .question-card {background:white; padding:20px; border-radius:15px; box-shadow:0 2px 5px rgba(0,0,0,0.05); margin-bottom:20px;}
+    /* 1. Nhúng Font chữ hiện đại (Inter) */
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap');
+    
+    /* Áp dụng font cho toàn bộ trang web */
+    html, body, [class*="css"] {
+        font-family: 'Inter', sans-serif;
+    }
+
+    /* 2. Nền trang web (Gradient nhẹ nhàng) */
+    .stApp {
+        background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+    }
+
+    /* 3. Thẻ chứa câu hỏi (Card UI) */
+    .question-card {
+        background-color: #ffffff;
+        padding: 25px;
+        border-radius: 16px; /* Bo tròn góc */
+        box-shadow: 0 8px 20px rgba(0,0,0,0.06); /* Đổ bóng mềm */
+        border: 1px solid rgba(255, 255, 255, 0.5); /* Viền mờ */
+        margin-bottom: 20px;
+        transition: all 0.3s ease; /* Hiệu ứng mượt khi di chuột */
+    }
+    .question-card:hover {
+        transform: translateY(-3px); /* Nổi lên nhẹ khi di chuột vào */
+        box-shadow: 0 12px 25px rgba(0,0,0,0.1);
+    }
+    .question-card h4 {
+        color: #2d3436;
+        font-weight: 600;
+        margin-top: 0;
+    }
+
+    /* 4. Nút bấm (Button) đẹp mắt */
+    div.stButton > button {
+        background: linear-gradient(to right, #6a11cb 0%, #2575fc 100%); /* Màu gradient tím xanh */
+        color: white;
+        border: none;
+        padding: 12px 30px;
+        border-radius: 50px; /* Nút hình con nhộng */
+        font-weight: 600;
+        letter-spacing: 0.5px;
+        box-shadow: 0 4px 15px rgba(106, 17, 203, 0.3);
+        transition: all 0.3s ease;
+        width: 100%; /* Nút rộng full */
+    }
+    div.stButton > button:hover {
+        transform: scale(1.02); /* Phóng to nhẹ khi di chuột */
+        box-shadow: 0 6px 20px rgba(106, 17, 203, 0.5);
+        color: #fff;
+    }
+
+    /* 5. Khu vực chọn đáp án (Radio) */
+    .stRadio {
+        background-color: rgba(255,255,255,0.6);
+        padding: 15px;
+        border-radius: 12px;
+        backdrop-filter: blur(5px); /* Hiệu ứng kính mờ */
+    }
+
+    /* 6. Hộp kết quả (Đúng/Sai) */
+    .result-box {
+        padding: 20px;
+        border-radius: 12px;
+        margin-top: 15px;
+        font-weight: 500;
+    }
+    .correct-box {
+        background-color: #d4edda;
+        color: #155724;
+        border-left: 5px solid #28a745;
+    }
+    .incorrect-box {
+        background-color: #f8d7da;
+        color: #721c24;
+        border-left: 5px solid #dc3545;
+    }
+    
+    /* Tiêu đề chính */
+    h1 {
+        color: #2d3436;
+        text-align: center;
+        font-weight: 700;
+    }
     </style>
-""", unsafe_allow_html=True)
+"""
+
+# Kích hoạt giao diện
+st.markdown(MODERN_UI_STYLES, unsafe_allow_html=True)
+# ==============================================================================
 
 # --- KHỞI TẠO STATE ---
 if "quiz_data" not in st.session_state: st.session_state.quiz_data = []
@@ -83,13 +170,16 @@ with st.sidebar:
 # --- PHẦN LÀM BÀI ---
 if st.session_state.quiz_data:
     with st.form("quiz_form"):
-        for i, q in enumerate(st.session_state.quiz_data):
-            st.markdown(f"<div class='question-card'><b>Câu {i+1}:</b> {q['question']}</div>", unsafe_allow_html=True)
-            st.session_state.user_answers[i] = st.radio("Chọn:", q['options'], key=f"rad_{i}", label_visibility="collapsed")
-        
-        if st.form_submit_button("Nộp bài"):
-            st.session_state.submitted = True
-            st.rerun()
+      # Ví dụ cách dùng trong vòng lặp (Bạn tự sửa vào code của mình):
+for i, q in enumerate(st.session_state.quiz_data):
+    # Bọc câu hỏi vào thẻ div có class="question-card"
+    st.markdown(f"""
+    <div class="question-card">
+        <h4>Câu {i+1}: {q['question']}</h4>
+    </div>
+    """, unsafe_allow_html=True)
+    
+    # (Phần radio button giữ nguyên...)
 
 # --- KẾT QUẢ ---
 if st.session_state.submitted:
@@ -103,4 +193,5 @@ if st.session_state.submitted:
             st.info(f"Giải thích: {q['explanation']}")
 
     st.metric("Kết quả:", f"{score}/{len(st.session_state.quiz_data)}")
+
 
