@@ -134,7 +134,7 @@ def generate_quiz(topic, num, diff):
     
     try:
         genai.configure(api_key=key)
-        model = genai.GenerativeModel('gemini-1.5-flash', generation_config={"response_mime_type": "application/json"})
+        model = genai.GenerativeModel('gemini-2.5-flash', generation_config={"response_mime_type": "application/json"})
         
         # --- CÂU LỆNH ĐÃ SỬA ĐỔI ĐỂ KHẮC PHỤC LỖI \ESCAPE ---
         prompt = f"""
@@ -275,6 +275,7 @@ if st.session_state.submitted:
         st.markdown(f"<h2 style='text-align:center; color:#28a745;'>Xuất sắc! {score}/{total}</h2>", unsafe_allow_html=True)
     else:
         st.markdown(f"<h3 style='text-align:center;'>Bạn đạt {score}/{total} điểm</h3>", unsafe_allow_html=True)
+
 
 
 
