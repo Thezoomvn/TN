@@ -171,9 +171,9 @@ with st.sidebar:
 if st.session_state.quiz_data:
     with st.form("quiz_form"):
       # Ví dụ cách dùng trong vòng lặp (Bạn tự sửa vào code của mình):
-for i, q in enumerate(st.session_state.quiz_data):
+        for i, q in enumerate(st.session_state.quiz_data):
     # Bọc câu hỏi vào thẻ div có class="question-card"
-    st.markdown(f"""
+            st.markdown(f"""
     <div class="question-card">
         <h4>Câu {i+1}: {q['question']}</h4>
     </div>
@@ -193,5 +193,6 @@ if st.session_state.submitted:
             st.info(f"Giải thích: {q['explanation']}")
 
     st.metric("Kết quả:", f"{score}/{len(st.session_state.quiz_data)}")
+
 
 
