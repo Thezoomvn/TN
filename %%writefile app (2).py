@@ -168,31 +168,67 @@ with st.sidebar:
             if data: st.session_state.quiz_data = data
 
 # --- PHẦN LÀM BÀI ---
+# --- 5. KHUNG LÀM BÀI (Dán vào cuối file) ---
 if st.session_state.quiz_data:
-    with st.form("quiz_form"):
-      # Ví dụ cách dùng trong vòng lặp (Bạn tự sửa vào code của mình):
-        for i, q in enumerate(st.session_state.quiz_data):
-    # Bọc câu hỏi vào thẻ div có class="question-card"
-            st.markdown(f"""
-    <div class="question-card">
-        <h4>Câu {i+1}: {q['question']}</h4>
-    </div>
-    """, unsafe_allow_html=True)
+    st.markdown("---")
     
-    # (Phần radio button giữ nguyên...)
+    # Mở Form
+    with st.form("quiz_form"):
+        # Vòng lặp hiện câu hỏi
+        for i, q in enumerate(st.session_state.quiz_data):
+            # Hiển thị câu hỏi dạng thẻ (Card)
+            st.markdown(f"""
+            <div class="question-card">
+                <h4>Câu {i+1}: {q['question']}</h4>
+            </div>
+            """, unsafe_allow_html=True)
+            
+            # Hiện ô chọn đáp án
+            st.session_state.user_answers[i] = st.radio(
+                "Lựa chọn của bạn:", 
+                q['options'], 
+                key=f"rad_{i}", 
+                label_visibility="collapsed"
+            )
+            st.write("") # Khoảng cách cho thoáng
 
-# --- KẾT QUẢ ---
+        st.markdown("<br>", unsafe_allow_html=True)
+        
+        # --- ĐÂY LÀ CÁI NÚT BẠN ĐANG THIẾU ---
+        # Nó phải nằm TRONG form (thụt vào 1 tab), nhưng NGOÀI vòng lặp for
+        submit_btn = st.form_submit_button("🏆 Nộp Bài & Xem Kết Quả")
+        
+        if submit_btn:
+            st.session_state.submitted = True
+            st.rerun()
+
+# --- 6. KẾT QUẢ ---
 if st.session_state.submitted:
+    st.markdown("---")
+    st.subheader("📊 Kết Quả Phân Tích")
+    
     score = 0
+    total = len(st.session_state.quiz_data)
+    
     for i, q in enumerate(st.session_state.quiz_data):
         user_choice = st.session_state.user_answers.get(i)
         is_correct = (user_choice == q['correct_answer'])
         if is_correct: score += 1
         
-        with st.expander(f"Xem giải thích câu {i+1} ({'Đúng' if is_correct else 'Sai'})"):
-            st.info(f"Giải thích: {q['explanation']}")
+        with st.expander(f"Câu {i+1}: {q['question']} {'✅' if is_correct else '❌'}"):
+            if is_correct:
+                st.markdown(f"<div class='result-box correct-box'>Chính xác! Bạn chọn: {user_choice}</div>", unsafe_allow_html=True)
+            else:
+                st.markdown(f"<div class='result-box incorrect-box'>Sai rồi!<br>Bạn chọn: {user_choice}<br>Đáp án đúng: <b>{q['correct_answer']}</b></div>", unsafe_allow_html=True)
+            
+            st.info(f"💡 Giải thích: {q['explanation']}")
 
-    st.metric("Kết quả:", f"{score}/{len(st.session_state.quiz_data)}")
+    st.progress(score / total)
+    if score == total:
+        st.balloons()
+        st.markdown(f"<h2 style='text-align:center; color:#28a745;'>Xuất sắc! {score}/{total}</h2>", unsafe_allow_html=True)
+    else:
+        st.markdown(f"<h3 style='text-align:center;'>Bạn đạt {score}/{total} điểm</h3>", unsafe_allow_html=True)
 
 
 
