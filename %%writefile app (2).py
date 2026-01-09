@@ -66,7 +66,7 @@ with st.sidebar:
     st.divider()
     topic = st.text_area("Chủ đề:", height=100)
     col1, col2 = st.columns(2)
-    with col1: num = st.number_input("Số câu:", 1, 20, 5)
+    with col1: num = st.number_input("Số câu:", 1, 60, 5)
     with col2: diff = st.selectbox("Độ khó:", ["Dễ", "Khó"])
     
     if st.button("🚀 Bắt đầu thi"):
@@ -103,3 +103,4 @@ if st.session_state.submitted:
             st.info(f"Giải thích: {q['explanation']}")
 
     st.metric("Kết quả:", f"{score}/{len(st.session_state.quiz_data)}")
+
