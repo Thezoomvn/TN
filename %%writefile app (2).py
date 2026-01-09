@@ -163,7 +163,7 @@ with st.sidebar:
     topic = st.text_area("Chủ đề:", height=100)
     col1, col2 = st.columns(2)
     with col1: num = st.number_input("Số câu:", 1, 60, 5)
-    with col2: diff = st.selectbox("Độ khó:", ["Dễ", "Khó"])
+    with col2: diff = st.selectbox("Độ khó:", ["Dễ","Trung bình","Khó"])
     
     if st.button("🚀 Bắt đầu thi"):
         if "GEMINI_API_KEY" not in st.secrets:
@@ -238,6 +238,7 @@ if st.session_state.submitted:
         st.markdown(f"<h2 style='text-align:center; color:#28a745;'>Xuất sắc! {score}/{total}</h2>", unsafe_allow_html=True)
     else:
         st.markdown(f"<h3 style='text-align:center;'>Bạn đạt {score}/{total} điểm</h3>", unsafe_allow_html=True)
+
 
 
 
