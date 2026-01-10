@@ -1,4 +1,9 @@
 import streamlit as st
+from datetime import datetime # Thêm dòng này để lấy ngày giờ
+
+# Kiểm tra nếu chưa có biến history thì tạo mới (dạng danh sách rỗng)
+if 'history' not in st.session_state:
+    st.session_state.history = []
 import google.generativeai as genai
 import json
 
@@ -281,6 +286,7 @@ if st.session_state.submitted:
         st.markdown(f"<h2 style='text-align:center; color:#28a745;'>Xuất sắc! {score}/{total}</h2>", unsafe_allow_html=True)
     else:
         st.markdown(f"<h3 style='text-align:center;'>Bạn đạt {score}/{total} điểm</h3>", unsafe_allow_html=True)
+
 
 
 
