@@ -1,9 +1,4 @@
 import streamlit as st
-from datetime import datetime # Thêm dòng này để lấy ngày giờ
-
-# Kiểm tra nếu chưa có biến history thì tạo mới (dạng danh sách rỗng)
-if 'history' not in st.session_state:
-    st.session_state.history = []
 import google.generativeai as genai
 import json
 
