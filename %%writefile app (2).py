@@ -206,4 +206,5 @@ if st.session_state.quiz_data:
     st.markdown("---")
     with st.form("quiz_form"):
         for i, q in enumerate(st.session_state.quiz_data):
-            st.markdown(f'<div class="question-card"><h4>Câu {i+1}: {q["question"]}</h4></div>',
+          st.markdown(f'<div class="question-card"><h4>Câu {i+1}: {q["question"]}</h4></div>', unsafe_allow_html=True)
+
