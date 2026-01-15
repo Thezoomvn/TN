@@ -48,8 +48,7 @@ def read_uploaded_file(uploaded_file):
     except Exception as e:
         return None
 
-# --- HÀM CẮT VĂN BẢN (GIẢM SIZE ĐỂ TRÁNH TRUNCATE) ---
-# Đã giảm từ 15000 xuống 4000 để đảm bảo AI đủ chỗ viết giải thích
+# --- HÀM CẮT VĂN BẢN ---
 def split_text_into_chunks(text, chunk_size=4000): 
     chunks = []
     start = 0
@@ -75,7 +74,8 @@ def generate_quiz(topic, num, diff):
     if not key: return []
     try:
         genai.configure(api_key=key)
-        model = genai.GenerativeModel('gemini-2.5-flash', generation_config={"response_mime_type": "application/json"})
+        # --- SỬA CHUẨN VỀ 1.5 FLASH (Bản này Free Tier rất cao) ---
+        model = genai.GenerativeModel('gemini-1.5-flash', generation_config={"response_mime_type": "application/json"})
         prompt = f"""
         Tạo {num} câu trắc nghiệm JSON về "{topic}", độ khó {diff}.
         Format: [{{"question": "...", "options": ["A. ", "B. "], "correct_answer": "...", "explanation": "..."}}]
@@ -86,12 +86,12 @@ def generate_quiz(topic, num, diff):
     except:
         return []
 
-# --- HÀM XỬ LÝ FILE (PHIÊN BẢN CỨU HỘ MẠNH MẼ) ---
+# --- HÀM XỬ LÝ FILE (ĐÃ FIX MODEL CHUẨN 1.5 FLASH) ---
 def process_file_to_quiz(text_content):
     key = get_api_key()
     if not key: return []
     
-    # Cắt nhỏ file hơn nữa
+    # Cắt nhỏ file
     chunks = split_text_into_chunks(text_content, chunk_size=4000)
     all_quizzes = []
     
@@ -101,28 +101,28 @@ def process_file_to_quiz(text_content):
     
     try:
         genai.configure(api_key=key)
-        model = genai.GenerativeModel('gemini-2.5-flash')
+        # --- CHẮC CHẮN SỬ DỤNG GEMINI 1.5 FLASH ---
+        model = genai.GenerativeModel('gemini-1.5-flash')
         
         for i, chunk in enumerate(chunks):
             status_text.text(f"Đang xử lý phần {i+1}/{len(chunks)}... (AI đang phân tích)")
             
-            # Prompt dặn dò kỹ về dấu ngoặc kép " để tránh lỗi JSON
             prompt = f"""
             Task: Extract multiple-choice questions from the text below into a JSON Array.
             TEXT: --- {chunk} ---
             
             RULES:
             1. Output strictly JSON list: [{{"question": "...", "options": [...], "correct_answer": "...", "explanation": "..."}}]
-            2. "explanation": Explain based on the text. IMPORTANT: DO NOT use double quotes (") inside the explanation string, use single quotes (') instead to avoid JSON errors.
+            2. "explanation": Explain based on the text. IMPORTANT: DO NOT use double quotes (") inside the explanation string, use single quotes (') instead.
             3. If no questions found, return [].
             """
             try:
+                # Thử gọi API
                 response = model.generate_content(prompt)
                 txt = response.text
                 
                 # --- LOGIC CỨU HỘ JSON ---
                 try:
-                    # Cách 1: Parse chuẩn
                     start = txt.find('[')
                     end = txt.rfind(']')
                     if start != -1 and end != -1:
@@ -133,30 +133,43 @@ def process_file_to_quiz(text_content):
                         raise ValueError("Không tìm thấy ngoặc vuông []")
                         
                 except Exception as parse_error:
-                    # Cách 2: Cứu dữ liệu nếu bị cắt cụt (thiếu ngoặc đóng)
+                    # Cứu dữ liệu nếu bị cắt cụt
                     debug_box.warning(f"Phần {i+1} bị lỗi format, đang thử sửa tự động...")
                     try:
-                        # Thử tìm ngoặc mở, và tự đóng ngoặc lại
                         start = txt.find('[')
                         if start != -1:
-                            # Cố gắng lấy phần hợp lệ nhất
                             json_str_fix = txt[start:] 
-                            # Cắt bỏ phần thừa ở cuối (dấu phẩy thừa hoặc ngoặc lỗi)
                             json_str_fix = json_str_fix.strip().rstrip(',').rstrip('}') 
-                            json_str_fix += "}]" # Đóng gói lại
+                            json_str_fix += "}]"
                             batch = json.loads(json_str_fix)
                             all_quizzes.extend(batch)
                             debug_box.success(f"-> Đã cứu thành công phần {i+1}!")
                     except:
-                        debug_box.error(f"Phần {i+1} lỗi nặng, bỏ qua. (Lỗi: {parse_error})")
-                        # In ra để bạn xem nó lỗi gì
-                        debug_box.code(txt[:500])
+                        debug_box.error(f"Phần {i+1} lỗi nặng, bỏ qua.")
 
             except Exception as e:
-                debug_box.error(f"Lỗi kết nối phần {i}: {e}")
+                # Xử lý lỗi Quota (429) thông minh hơn
+                if "429" in str(e):
+                    debug_box.warning(f"Google báo bận, đang chờ 5 giây để thử lại phần {i+1}...")
+                    time.sleep(5) # Nghỉ 5s
+                    try:
+                        response = model.generate_content(prompt) # Thử lại lần 2
+                        txt = response.text
+                        start = txt.find('[')
+                        end = txt.rfind(']')
+                        if start != -1 and end != -1:
+                            batch = json.loads(txt[start : end+1])
+                            all_quizzes.extend(batch)
+                    except:
+                         debug_box.error(f"Vẫn lỗi sau khi thử lại: {e}")
+                else:
+                    debug_box.error(f"Lỗi kết nối phần {i}: {e}")
             
             progress_bar.progress((i + 1) / len(chunks))
-            time.sleep(1)
+            
+            # --- QUAN TRỌNG: THỜI GIAN NGHỈ ---
+            # 1.5 Flash cho phép 15 request/phút -> Nghỉ 4s là an toàn tuyệt đối
+            time.sleep(4) 
             
         status_text.empty()
         progress_bar.empty()
