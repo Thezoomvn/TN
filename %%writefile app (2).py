@@ -35,61 +35,96 @@ def read_uploaded_file(uploaded_file):
 
 # --- HÀM NHỜ AI CHUYỂN TEXT THÀNH TRẮC NGHIỆM ---
 # --- HÀM NHỜ AI CHUYỂN TEXT THÀNH TRẮC NGHIỆM (ĐÃ NÂNG CẤP SỬA LỖI JSON) ---
+import time # Thêm thư viện này ở đầu file nếu chưa có
+
+# --- HÀM CẮT VĂN BẢN THÀNH TỪNG KHÚC (CHUNKING) ---
+def split_text_into_chunks(text, chunk_size=15000):
+    # Cắt văn bản thành các đoạn khoảng 15000 ký tự (khoảng 3-5 trang)
+    chunks = []
+    start = 0
+    while start < len(text):
+        end = start + chunk_size
+        # Cố gắng tìm dấu xuống dòng gần nhất để không cắt đôi câu hỏi
+        if end < len(text):
+            # Tìm dấu xuống dòng lùi về từ vị trí cắt
+            last_newline = text.rfind('\n', start, end)
+            if last_newline != -1:
+                end = last_newline
+        chunks.append(text[start:end])
+        start = end
+    return chunks
+
+# --- HÀM XỬ LÝ FILE (PHIÊN BẢN MỚI: QUÉT TOÀN BỘ FILE) ---
 def process_file_to_quiz(text_content):
     key = get_api_key()
     if not key: return []
     
+    # 1. Cắt nhỏ văn bản để AI không bị quá tải
+    chunks = split_text_into_chunks(text_content)
+    all_quizzes = []
+    
+    # Tạo thanh tiến trình
+    progress_bar = st.progress(0)
+    status_text = st.empty()
+    
     try:
         genai.configure(api_key=key)
-        # Bỏ config json mode cũ đi, để text thường để mình tự xử lý cho an toàn
-        model = genai.GenerativeModel('gemini-2.5-flash') 
+        model = genai.GenerativeModel('gemini-1.5-flash') # Dùng bản 1.5 Flash cho nhanh và input dài
         
-        # Prompt được viết lại chặt chẽ hơn
-        prompt = f"""
-        Nhiệm vụ: Tạo các câu hỏi trắc nghiệm từ văn bản sau và trả về đúng định dạng JSON Array.
-        
-        VĂN BẢN ĐẦU VÀO:
-        ---
-        {text_content[:8000]} 
-        ---
-        
-        YÊU CẦU BẮT BUỘC:
-        1. CHỈ TRẢ VỀ JSON thuần (Raw JSON), không được bọc trong markdown (không dùng ```json).
-        2. Kiểm tra kỹ các dấu ngoặc kép (") trong nội dung. Nếu nội dung có dấu ", hãy đổi thành dấu nháy đơn ' hoặc thêm dấu gạch chéo \\".
-        3. Cấu trúc mẫu:
-        [
-            {{
-                "question": "Nội dung câu hỏi?",
-                "options": ["A. Đáp án 1", "B. Đáp án 2", "C. Đáp án 3", "D. Đáp án 4"],
-                "correct_answer": "A. Đáp án 1",
-                "explanation": "Giải thích ngắn gọn."
-            }}
-        ]
-        """
-        response = model.generate_content(prompt)
-        txt = response.text
-        
-        # --- BƯỚC DỌN DẸP DỮ LIỆU (QUAN TRỌNG) ---
-        # 1. Xóa các ký tự Markdown thừa nếu AI lỡ thêm vào
-        txt = txt.replace("```json", "").replace("```", "").strip()
-        
-        # 2. Xử lý trường hợp AI trả về text thừa ở đầu/cuối
-        # Tìm dấu ngoặc vuông mở [ đầu tiên và đóng ] cuối cùng
-        start_idx = txt.find("[")
-        end_idx = txt.rfind("]")
-        
-        if start_idx != -1 and end_idx != -1:
-            txt = txt[start_idx : end_idx + 1]
-            return json.loads(txt)
-        else:
-            st.error("AI không trả về đúng định dạng danh sách câu hỏi.")
-            return []
+        for i, chunk in enumerate(chunks):
+            status_text.text(f"Đang xử lý phần {i+1}/{len(chunks)}... (AI đang đọc)")
             
-    except json.JSONDecodeError as e:
-        st.error(f"Lỗi cấu trúc dữ liệu từ AI: {e}")
-        # In ra text lỗi để debug nếu cần
-        # st.code(txt) 
-        return []
+            prompt = f"""
+            Nhiệm vụ: Trích xuất TẤT CẢ các câu hỏi trắc nghiệm có trong văn bản dưới đây.
+            
+            VĂN BẢN CẦN XỬ LÝ (Phần {i+1}):
+            ---
+            {chunk}
+            ---
+            
+            YÊU CẦU BẮT BUỘC:
+            1. Tìm tất cả câu hỏi, đáp án và đáp án đúng.
+            2. Nếu câu hỏi bị cắt đôi ở đầu hoặc cuối văn bản mà không đủ thông tin, hãy BỎ QUA câu đó.
+            3. CHỈ TRẢ VỀ JSON Array thuần, không Markdown.
+            4. Định dạng:
+            [
+                {{
+                    "question": "...",
+                    "options": ["A. ...", "B. ...", "C. ...", "D. ..."],
+                    "correct_answer": "...",
+                    "explanation": "Giải thích ngắn gọn (nếu có thể suy luận)."
+                }}
+            ]
+            """
+            
+            try:
+                # Gọi AI
+                response = model.generate_content(prompt)
+                txt = response.text
+                
+                # Dọn dẹp JSON
+                txt = txt.replace("```json", "").replace("```", "").strip()
+                start_idx = txt.find("[")
+                end_idx = txt.rfind("]")
+                
+                if start_idx != -1 and end_idx != -1:
+                    json_str = txt[start_idx : end_idx + 1]
+                    batch_questions = json.loads(json_str)
+                    
+                    # Gộp vào danh sách tổng
+                    if isinstance(batch_questions, list):
+                        all_quizzes.extend(batch_questions)
+            except Exception as e:
+                print(f"Lỗi ở phần {i+1}: {e}") # Bỏ qua lỗi nhỏ để chạy tiếp phần sau
+            
+            # Cập nhật thanh tiến trình
+            progress_bar.progress((i + 1) / len(chunks))
+            time.sleep(1) # Nghỉ 1 xíu để tránh bị Google chặn vì spam request
+            
+        status_text.empty()
+        progress_bar.empty()
+        return all_quizzes
+
     except Exception as e:
         st.error(f"Lỗi hệ thống: {str(e)}")
         return []
@@ -382,6 +417,7 @@ try:
     st.dataframe(df_history, use_container_width=True)
 except:
     st.info("Chưa có dữ liệu hoặc chưa kết nối Google Sheet.")
+
 
 
 
