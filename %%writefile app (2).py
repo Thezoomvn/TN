@@ -75,7 +75,7 @@ def generate_quiz(topic, num, diff):
     try:
         genai.configure(api_key=key)
         # --- SỬA CHUẨN VỀ 1.5 FLASH (Bản này Free Tier rất cao) ---
-        model = genai.GenerativeModel('gemini-1.5-flash', generation_config={"response_mime_type": "application/json"})
+        model = genai.GenerativeModel('gemini-2.5-flash', generation_config={"response_mime_type": "application/json"})
         prompt = f"""
         Tạo {num} câu trắc nghiệm JSON về "{topic}", độ khó {diff}.
         Format: [{{"question": "...", "options": ["A. ", "B. "], "correct_answer": "...", "explanation": "..."}}]
@@ -102,7 +102,7 @@ def process_file_to_quiz(text_content):
     try:
         genai.configure(api_key=key)
         # --- CHẮC CHẮN SỬ DỤNG GEMINI 1.5 FLASH ---
-        model = genai.GenerativeModel('gemini-1.5-flash')
+        model = genai.GenerativeModel('gemini-2.5-flash')
         
         for i, chunk in enumerate(chunks):
             status_text.text(f"Đang xử lý phần {i+1}/{len(chunks)}... (AI đang phân tích)")
@@ -352,3 +352,4 @@ try:
                         st.info(f"💡 **Giải thích:** {explanation}")
 except Exception as e:
     st.info("Chưa có dữ liệu.")
+
