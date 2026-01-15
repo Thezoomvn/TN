@@ -34,39 +34,64 @@ def read_uploaded_file(uploaded_file):
         return None
 
 # --- HÀM NHỜ AI CHUYỂN TEXT THÀNH TRẮC NGHIỆM ---
+# --- HÀM NHỜ AI CHUYỂN TEXT THÀNH TRẮC NGHIỆM (ĐÃ NÂNG CẤP SỬA LỖI JSON) ---
 def process_file_to_quiz(text_content):
     key = get_api_key()
     if not key: return []
     
     try:
         genai.configure(api_key=key)
-        model = genai.GenerativeModel('gemini-2.5-flash', generation_config={"response_mime_type": "application/json"})
+        # Bỏ config json mode cũ đi, để text thường để mình tự xử lý cho an toàn
+        model = genai.GenerativeModel('gemini-2.5-flash') 
         
-        # Prompt đặc biệt để AI đọc đề thi của bạn
+        # Prompt được viết lại chặt chẽ hơn
         prompt = f"""
-        Đây là nội dung trích xuất từ tài liệu ôn tập của tôi:
-        ---
-        {text_content[:10000]}  # Giới hạn 10k ký tự để tránh lỗi quá dài
-        ---
-        Nhiệm vụ: Hãy trích xuất các câu hỏi trắc nghiệm từ văn bản trên và chuyển đổi thành định dạng JSON chuẩn.
+        Nhiệm vụ: Tạo các câu hỏi trắc nghiệm từ văn bản sau và trả về đúng định dạng JSON Array.
         
-        YÊU CẦU:
-        1. Nếu văn bản có đáp án sẵn, hãy điền vào "correct_answer". Nếu không, bạn hãy tự giải để tìm đáp án đúng.
-        2. Tạo lời giải thích ngắn gọn vào "explanation".
-        3. Định dạng JSON bắt buộc (giữ nguyên cấu trúc mảng):
+        VĂN BẢN ĐẦU VÀO:
+        ---
+        {text_content[:8000]} 
+        ---
+        
+        YÊU CẦU BẮT BUỘC:
+        1. CHỈ TRẢ VỀ JSON thuần (Raw JSON), không được bọc trong markdown (không dùng ```json).
+        2. Kiểm tra kỹ các dấu ngoặc kép (") trong nội dung. Nếu nội dung có dấu ", hãy đổi thành dấu nháy đơn ' hoặc thêm dấu gạch chéo \\".
+        3. Cấu trúc mẫu:
         [
             {{
-                "question": "...",
-                "options": ["A. ...", "B. ...", "C. ...", "D. ..."],
-                "correct_answer": "...",
-                "explanation": "..."
+                "question": "Nội dung câu hỏi?",
+                "options": ["A. Đáp án 1", "B. Đáp án 2", "C. Đáp án 3", "D. Đáp án 4"],
+                "correct_answer": "A. Đáp án 1",
+                "explanation": "Giải thích ngắn gọn."
             }}
         ]
         """
         response = model.generate_content(prompt)
-        return json.loads(response.text)
+        txt = response.text
+        
+        # --- BƯỚC DỌN DẸP DỮ LIỆU (QUAN TRỌNG) ---
+        # 1. Xóa các ký tự Markdown thừa nếu AI lỡ thêm vào
+        txt = txt.replace("```json", "").replace("```", "").strip()
+        
+        # 2. Xử lý trường hợp AI trả về text thừa ở đầu/cuối
+        # Tìm dấu ngoặc vuông mở [ đầu tiên và đóng ] cuối cùng
+        start_idx = txt.find("[")
+        end_idx = txt.rfind("]")
+        
+        if start_idx != -1 and end_idx != -1:
+            txt = txt[start_idx : end_idx + 1]
+            return json.loads(txt)
+        else:
+            st.error("AI không trả về đúng định dạng danh sách câu hỏi.")
+            return []
+            
+    except json.JSONDecodeError as e:
+        st.error(f"Lỗi cấu trúc dữ liệu từ AI: {e}")
+        # In ra text lỗi để debug nếu cần
+        # st.code(txt) 
+        return []
     except Exception as e:
-        st.error(f"Lỗi khi xử lý file: {str(e)}")
+        st.error(f"Lỗi hệ thống: {str(e)}")
         return []
 
 # --- CẤU HÌNH TRANG ---
@@ -357,5 +382,6 @@ try:
     st.dataframe(df_history, use_container_width=True)
 except:
     st.info("Chưa có dữ liệu hoặc chưa kết nối Google Sheet.")
+
 
 
