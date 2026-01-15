@@ -95,7 +95,7 @@ def process_file_to_quiz(text_content):
     
     try:
         genai.configure(api_key=key)
-        model = genai.GenerativeModel('gemini-1.5-flash')
+        model = genai.GenerativeModel('gemini-2.5-flash')
         
         for i, chunk in enumerate(chunks):
             status_text.text(f"Đang xử lý phần {i+1}/{len(chunks)}... (AI đang đọc)")
@@ -313,3 +313,4 @@ try:
                         st.write(f"**Đáp án:** {correct_val}")
 except Exception as e:
     st.info("Chưa có dữ liệu.")
+
