@@ -4,6 +4,70 @@ import json
 import pandas as pd
 from datetime import datetime
 from streamlit_gsheets import GSheetsConnection
+import PyPDF2
+import docx
+
+# --- HÀM ĐỌC FILE TẢI LÊN ---
+def read_uploaded_file(uploaded_file):
+    try:
+        # 1. Nếu là PDF
+        if uploaded_file.type == "application/pdf":
+            reader = PyPDF2.PdfReader(uploaded_file)
+            text = ""
+            for page in reader.pages:
+                text += page.extract_text() or ""
+            return text
+            
+        # 2. Nếu là Word (.docx)
+        elif uploaded_file.type == "application/vnd.openxmlformats-officedocument.wordprocessingml.document":
+            doc = docx.Document(uploaded_file)
+            text = "\n".join([para.text for para in doc.paragraphs])
+            return text
+            
+        # 3. Nếu là Text (.txt)
+        elif uploaded_file.type == "text/plain":
+            return str(uploaded_file.read(), "utf-8")
+            
+        else:
+            return None
+    except Exception as e:
+        return None
+
+# --- HÀM NHỜ AI CHUYỂN TEXT THÀNH TRẮC NGHIỆM ---
+def process_file_to_quiz(text_content):
+    key = get_api_key()
+    if not key: return []
+    
+    try:
+        genai.configure(api_key=key)
+        model = genai.GenerativeModel('gemini-2.5-flash', generation_config={"response_mime_type": "application/json"})
+        
+        # Prompt đặc biệt để AI đọc đề thi của bạn
+        prompt = f"""
+        Đây là nội dung trích xuất từ tài liệu ôn tập của tôi:
+        ---
+        {text_content[:10000]}  # Giới hạn 10k ký tự để tránh lỗi quá dài
+        ---
+        Nhiệm vụ: Hãy trích xuất các câu hỏi trắc nghiệm từ văn bản trên và chuyển đổi thành định dạng JSON chuẩn.
+        
+        YÊU CẦU:
+        1. Nếu văn bản có đáp án sẵn, hãy điền vào "correct_answer". Nếu không, bạn hãy tự giải để tìm đáp án đúng.
+        2. Tạo lời giải thích ngắn gọn vào "explanation".
+        3. Định dạng JSON bắt buộc (giữ nguyên cấu trúc mảng):
+        [
+            {{
+                "question": "...",
+                "options": ["A. ...", "B. ...", "C. ...", "D. ..."],
+                "correct_answer": "...",
+                "explanation": "..."
+            }}
+        ]
+        """
+        response = model.generate_content(prompt)
+        return json.loads(response.text)
+    except Exception as e:
+        st.error(f"Lỗi khi xử lý file: {str(e)}")
+        return []
 
 # --- CẤU HÌNH TRANG ---
 st.set_page_config(page_title="AI Quiz Pro", page_icon="🛡️", layout="centered")
@@ -136,30 +200,68 @@ def generate_quiz(topic, num, diff):
 # --- GIAO DIỆN CHÍNH ---
 st.title("🛡️HNNTĐN")
 
+# --- GIAO DIỆN THANH BÊN (SIDEBAR) MỚI ---
 with st.sidebar:
     st.header("Trạng thái hệ thống")
+    
+    # Kiểm tra API Key
     if "GEMINI_API_KEY" in st.secrets:
         st.success("✅ Đã kết nối API Key.")
     else:
         st.error("❌ Chưa tìm thấy API Key.")
     
     st.divider()
-    topic = st.text_area("Chủ đề:", height=100)
-    col1, col2 = st.columns(2)
-    with col1: num = st.number_input("Số câu:", 1, 60, 5)
-    with col2: diff = st.selectbox("Độ khó:", ["Dễ","Trung bình","Khó"])
     
-    if st.button("🚀 Bắt đầu thi"):
-        if "GEMINI_API_KEY" not in st.secrets:
-            st.error("Vui lòng cấu hình Key trước!")
-        elif not topic:
-            st.warning("Thiếu chủ đề!")
-        else:
-            st.session_state.submitted = False
-            st.session_state.user_answers = {}
-            data = generate_quiz(topic, num, diff)
-            if data: st.session_state.quiz_data = data
+    # TẠO 2 TAB (THẺ) ĐỂ CHUYỂN ĐỔI CHẾ ĐỘ
+    tab1, tab2 = st.tabs(["🤖 AI Tự Tạo", "📂 Tải File"])
+    
+    # --- TAB 1: CÁCH CŨ (NHẬP CHỦ ĐỀ) ---
+    with tab1:
+        topic = st.text_area("Chủ đề:", height=100, key="topic_input")
+        col1, col2 = st.columns(2)
+        with col1: num = st.number_input("Số câu:", 1, 60, 5)
+        with col2: diff = st.selectbox("Độ khó:", ["Dễ","Trung bình","Khó"])
+        
+        if st.button("🚀 Bắt đầu thi (AI Tạo)"):
+            if not topic:
+                st.warning("Thiếu chủ đề!")
+            else:
+                # Reset trạng thái cũ
+                st.session_state.submitted = False
+                st.session_state.user_answers = {}
+                
+                # Gọi hàm tạo câu hỏi cũ
+                data = generate_quiz(topic, num, diff)
+                if data: 
+                    st.session_state.quiz_data = data
+                    st.rerun()
 
+    # --- TAB 2: CÁCH MỚI (TẢI FILE) ---
+    with tab2:
+        st.info("Hỗ trợ: PDF, Word, TXT")
+        # Nút upload file
+        uploaded_file = st.file_uploader("Chọn tài liệu:", type=['txt', 'pdf', 'docx'])
+        
+        if uploaded_file is not None:
+            if st.button("📝 Tạo đề từ File"):
+                with st.spinner("Đang đọc file và tạo đề..."):
+                    # 1. Đọc nội dung file (Hàm ở Bước 2)
+                    raw_text = read_uploaded_file(uploaded_file)
+                    
+                    if raw_text and len(raw_text) > 50:
+                        # 2. Gửi cho AI xử lý (Hàm ở Bước 2)
+                        file_quiz_data = process_file_to_quiz(raw_text)
+                        
+                        if file_quiz_data:
+                            st.session_state.submitted = False
+                            st.session_state.user_answers = {}
+                            st.session_state.quiz_data = file_quiz_data
+                            st.success(f"Xong! Đã tạo {len(file_quiz_data)} câu hỏi.")
+                            st.rerun()
+                        else:
+                            st.error("AI không tìm thấy câu hỏi nào.")
+                    else:
+                        st.error("File quá ngắn hoặc lỗi đọc file.")
 # --- PHẦN LÀM BÀI ---
 if st.session_state.quiz_data:
     st.markdown("---")
@@ -255,3 +357,4 @@ try:
     st.dataframe(df_history, use_container_width=True)
 except:
     st.info("Chưa có dữ liệu hoặc chưa kết nối Google Sheet.")
+
