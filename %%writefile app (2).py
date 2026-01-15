@@ -219,7 +219,7 @@ with st.sidebar:
     with tab1:
         topic = st.text_area("Chủ đề:", height=100, key="topic_input")
         col1, col2 = st.columns(2)
-        with col1: num = st.number_input("Số câu:", 1, 60, 5)
+        with col1: num = st.number_input("Số câu:", 1, 500, 5)
         with col2: diff = st.selectbox("Độ khó:", ["Dễ","Trung bình","Khó"])
         
         if st.button("🚀 Bắt đầu thi (AI Tạo)"):
@@ -357,4 +357,5 @@ try:
     st.dataframe(df_history, use_container_width=True)
 except:
     st.info("Chưa có dữ liệu hoặc chưa kết nối Google Sheet.")
+
 
