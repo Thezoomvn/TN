@@ -15,13 +15,16 @@ st.set_page_config(page_title="AI Quiz Pro", page_icon="🛡️", layout="center
 # --- KẾT NỐI GOOGLE SHEETS ---
 conn = st.connection("gsheets", type=GSheetsConnection)
 
-# --- HÀM LỌC DỮ LIỆU LỖI (MỚI THÊM) ---
+# --- HÀM LỌC DỮ LIỆU LỖI (QUAN TRỌNG ĐỂ TRÁNH SẬP WEB) ---
 def clean_quiz_data(data):
-    """Loại bỏ các câu hỏi thiếu trường quan trọng để tránh KeyError"""
+    """Lọc bỏ câu hỏi lỗi và đảm bảo luôn có trường explanation"""
     valid_data = []
     for q in data:
-        # Chỉ giữ lại câu nào có đủ 3 món: câu hỏi, options, đáp án đúng
+        # 1. Kiểm tra đủ trường bắt buộc
         if "question" in q and "options" in q and "correct_answer" in q:
+            # 2. Nếu thiếu explanation thì tự điền mặc định
+            if "explanation" not in q or not q["explanation"]:
+                q["explanation"] = "AI không tìm thấy giải thích cụ thể trong đoạn văn bản này."
             valid_data.append(q)
     return valid_data
 
@@ -65,7 +68,7 @@ def get_api_key():
         return st.secrets["GEMINI_API_KEY"]
     return ""
 
-# --- HÀM TẠO QUIZ TỪ CHỦ ĐỀ ---
+# --- HÀM TẠO QUIZ TỪ CHỦ ĐỀ (TAB 1) ---
 def generate_quiz(topic, num, diff):
     key = get_api_key()
     if not key: return []
@@ -74,15 +77,17 @@ def generate_quiz(topic, num, diff):
         model = genai.GenerativeModel('gemini-2.5-flash', generation_config={"response_mime_type": "application/json"})
         prompt = f"""
         Tạo {num} câu trắc nghiệm JSON về "{topic}", độ khó {diff}.
-        Format: [{{"question": "...", "options": ["A. ", "B. "], "correct_answer": "...", "explanation": "..."}}]
+        YÊU CẦU:
+        1. Phải có trường "explanation" giải thích chi tiết tại sao đáp án đó đúng.
+        2. Format: [{{"question": "...", "options": ["A. ", "B. "], "correct_answer": "...", "explanation": "..."}}]
         """
         response = model.generate_content(prompt)
         data = json.loads(response.text)
-        return clean_quiz_data(data) # Lọc lỗi ngay sau khi tạo
+        return clean_quiz_data(data)
     except:
         return []
 
-# --- HÀM XỬ LÝ FILE ---
+# --- HÀM XỬ LÝ FILE (TAB 2) - CÓ TỰ GIẢI THÍCH ---
 def process_file_to_quiz(text_content):
     key = get_api_key()
     if not key: return []
@@ -98,20 +103,25 @@ def process_file_to_quiz(text_content):
         model = genai.GenerativeModel('gemini-2.5-flash')
         
         for i, chunk in enumerate(chunks):
-            status_text.text(f"Đang xử lý phần {i+1}/{len(chunks)}... (AI đang đọc)")
+            status_text.text(f"Đang xử lý phần {i+1}/{len(chunks)}... (AI đang đọc & tạo lời giải)")
+            
+            # --- PROMPT ĐÃ ĐƯỢC NÂNG CẤP ĐỂ TẠO GIẢI THÍCH ---
             prompt = f"""
-            Extract multiple-choice questions from text to JSON Array.
+            Task: Extract multiple-choice questions from the text below into a JSON Array.
             TEXT: --- {chunk} ---
-            RULES:
+            
+            CRITICAL RULES:
             1. Output strictly JSON list: [{{"question": "...", "options": [...], "correct_answer": "...", "explanation": "..."}}]
-            2. If no questions, return [].
+            2. "correct_answer" must match exactly one of the options.
+            3. "explanation": YOU MUST WRITE A DETAILED EXPLANATION based on the text. Explain WHY the answer is correct using information from the provided text.
+            4. If no questions found, return [].
             """
             try:
                 response = model.generate_content(prompt)
                 txt = response.text
-                debug_box.write(f"Part {i+1} raw: {txt[:100]}...")
+                debug_box.write(f"Phản hồi phần {i+1}: {txt[:100]}...")
                 
-                # Tìm JSON bằng Regex/Find
+                # Tìm JSON
                 start_idx = txt.find("[")
                 end_idx = txt.rfind("]")
                 if start_idx != -1 and end_idx != -1:
@@ -120,9 +130,9 @@ def process_file_to_quiz(text_content):
                     if isinstance(batch, list):
                         all_quizzes.extend(batch)
                 else:
-                    debug_box.warning(f"Part {i+1}: No JSON found.")
+                    debug_box.warning(f"Phần {i+1}: Không tìm thấy JSON.")
             except Exception as e:
-                debug_box.error(f"Error part {i}: {e}")
+                debug_box.error(f"Lỗi phần {i}: {e}")
             
             progress_bar.progress((i + 1) / len(chunks))
             time.sleep(1)
@@ -130,15 +140,12 @@ def process_file_to_quiz(text_content):
         status_text.empty()
         progress_bar.empty()
         
-        # LỌC DỮ LIỆU CUỐI CÙNG
+        # Lọc dữ liệu lỗi trước khi trả về
         cleaned_quizzes = clean_quiz_data(all_quizzes)
-        if len(cleaned_quizzes) < len(all_quizzes):
-            st.toast(f"Đã tự động loại bỏ {len(all_quizzes) - len(cleaned_quizzes)} câu lỗi.")
-        
         return cleaned_quizzes
 
     except Exception as e:
-        st.error(f"System Error: {str(e)}")
+        st.error(f"Lỗi hệ thống: {str(e)}")
         return []
 
 # --- GIAO DIỆN DARK MODE ---
@@ -204,9 +211,9 @@ with st.sidebar:
                         st.session_state.submitted = False
                         st.session_state.user_answers = {}
                         st.session_state.quiz_data = file_quiz_data
-                        st.success(f"Đã tạo {len(file_quiz_data)} câu hỏi!")
+                        st.success(f"Đã tạo {len(file_quiz_data)} câu hỏi kèm lời giải!")
                         st.rerun()
-                    else: st.error("Không tìm thấy câu hỏi nào (Xem chi tiết lỗi bên dưới).")
+                    else: st.error("Không tìm thấy câu hỏi nào.")
                 else: st.error("File lỗi.")
 
 # --- PHẦN LÀM BÀI ---
@@ -224,13 +231,10 @@ if st.session_state.quiz_data:
         if submit_btn:
             st.session_state.submitted = True
             
-            # --- TÍNH ĐIỂM (ĐÃ SỬA LỖI KEYERROR) ---
             score = 0
             for i, q in enumerate(st.session_state.quiz_data):
                 user_choice = st.session_state.user_answers.get(i)
-                # Dùng .get() để lấy đáp án đúng, nếu không có thì trả về None để tránh lỗi
-                correct_val = q.get('correct_answer') 
-                
+                correct_val = q.get('correct_answer')
                 if correct_val and user_choice == correct_val:
                     score += 1
             
@@ -238,7 +242,6 @@ if st.session_state.quiz_data:
             time_now = datetime.now().strftime("%H:%M:%S - %d/%m/%Y")
             ket_qua = "Đậu" if total > 0 and score >= total/2 else "Rớt"
 
-            # Lưu Google Sheets
             try:
                 json_quiz = json.dumps(st.session_state.quiz_data, ensure_ascii=False)
                 json_answers = json.dumps({str(k): v for k, v in st.session_state.user_answers.items()}, ensure_ascii=False)
@@ -267,9 +270,9 @@ if st.session_state.submitted:
     
     for i, q in enumerate(st.session_state.quiz_data):
         u_ans = st.session_state.user_answers.get(i)
-        # Lấy đáp án an toàn
-        correct_val = q.get('correct_answer', 'Không có đáp án')
-        explanation = q.get('explanation', '')
+        correct_val = q.get('correct_answer', 'N/A')
+        # Lấy explanation an toàn, nếu không có thì hiện thông báo
+        explanation = q.get('explanation', 'Không có lời giải thích cho câu này.')
         
         is_correct = (u_ans == correct_val)
         if is_correct: score += 1
@@ -279,7 +282,9 @@ if st.session_state.submitted:
                  st.markdown(f"<div class='result-box correct-box'>Bạn chọn: {u_ans} (Chính xác)</div>", unsafe_allow_html=True)
             else:
                  st.markdown(f"<div class='result-box incorrect-box'>Bạn chọn: {u_ans}<br>Đáp án đúng: <b>{correct_val}</b></div>", unsafe_allow_html=True)
-            st.write(f"💡 Giải thích: {explanation}")
+            
+            # --- PHẦN HIỂN THỊ GIẢI THÍCH ĐƯỢC LÀM NỔI BẬT ---
+            st.info(f"💡 **Giải thích:** {explanation}")
             
     if total > 0:
         st.progress(score/total)
@@ -306,11 +311,14 @@ try:
                 for i, q in enumerate(old_quiz):
                     u_ans = old_ans.get(str(i))
                     correct_val = q.get('correct_answer', 'N/A')
+                    # Lấy explanation từ lịch sử
+                    explanation = q.get('explanation', 'Không có lời giải thích.')
+                    
                     is_correct = (u_ans == correct_val)
                     
                     with st.expander(f"Câu {i+1}: {q['question']} {'✅' if is_correct else '❌'}"):
                         st.write(f"**Bạn chọn:** {u_ans}")
                         st.write(f"**Đáp án:** {correct_val}")
+                        st.info(f"💡 **Giải thích:** {explanation}")
 except Exception as e:
     st.info("Chưa có dữ liệu.")
-
