@@ -6,6 +6,7 @@ from datetime import datetime
 from streamlit_gsheets import GSheetsConnection
 import PyPDF2
 import docx
+import time # Thêm thư viện này ở đầu file nếu chưa có
 
 # --- HÀM ĐỌC FILE TẢI LÊN ---
 def read_uploaded_file(uploaded_file):
@@ -35,8 +36,6 @@ def read_uploaded_file(uploaded_file):
 
 # --- HÀM NHỜ AI CHUYỂN TEXT THÀNH TRẮC NGHIỆM ---
 # --- HÀM NHỜ AI CHUYỂN TEXT THÀNH TRẮC NGHIỆM (ĐÃ NÂNG CẤP SỬA LỖI JSON) ---
-import time # Thêm thư viện này ở đầu file nếu chưa có
-
 # --- HÀM CẮT VĂN BẢN THÀNH TỪNG KHÚC (CHUNKING) ---
 def split_text_into_chunks(text, chunk_size=15000):
     # Cắt văn bản thành các đoạn khoảng 15000 ký tự (khoảng 3-5 trang)
@@ -417,6 +416,7 @@ try:
     st.dataframe(df_history, use_container_width=True)
 except:
     st.info("Chưa có dữ liệu hoặc chưa kết nối Google Sheet.")
+
 
 
 
