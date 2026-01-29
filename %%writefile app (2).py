@@ -87,7 +87,7 @@ def generate_quiz(topic, num, diff):
     if not key: return []
     try:
         genai.configure(api_key=key)
-        model = genai.GenerativeModel('gemini-1.5-flash') 
+        model = genai.GenerativeModel('gemini-2.5-flash') 
         
         # --- PROMPT CHUẨN LATEX ---
         prompt = f"""
@@ -315,4 +315,5 @@ if st.session_state.submitted:
                  st.markdown(f"<div class='result-box incorrect-box'>Bạn chọn: {u_ans}<br>Đáp án đúng: <b>{correct_val}</b></div>", unsafe_allow_html=True)
             st.info(f"💡 **Giải thích:** {explanation}")
     if total > 0: st.progress(score/total)
+
 
