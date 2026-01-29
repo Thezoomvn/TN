@@ -300,29 +300,4 @@ if st.session_state.submitted:
             st.info(f"💡 **Giải thích:** {explanation}")
     if total > 0: st.progress(score/total)
 
-# --- XEM LẠI LỊCH SỬ ---
-st.divider()
-st.subheader("📜 Kho Lưu Trữ Bài Thi")
-try:
-    df_history = conn.read(worksheet="Sheet1", ttl=0)
-    st.dataframe(df_history[["Thời gian", "Điểm số", "Kết quả"]], use_container_width=True)
-    st.write("### 🔍 Xem lại bài cũ")
-    if not df_history.empty and "Thời gian" in df_history.columns:
-        options = df_history["Thời gian"].tolist()
-        selected_time = st.selectbox("Chọn bài thi:", options[::-1])
-        if st.button("Mở lại bài thi này"):
-            record = df_history[df_history["Thời gian"] == selected_time].iloc[0]
-            if "Chi tiết đề" in record and "Bài làm" in record:
-                old_quiz = json.loads(record["Chi tiết đề"])
-                old_ans = json.loads(record["Bài làm"])
-                st.info(f"Đang xem: {selected_time} - Điểm: {record['Điểm số']}")
-                for i, q in enumerate(old_quiz):
-                    u_ans = old_ans.get(str(i))
-                    correct_val = q.get('correct_answer', 'N/A')
-                    explanation = q.get('explanation', 'Không có lời giải thích.')
-                    is_correct = (u_ans == correct_val)
-                    with st.expander(f"Câu {i+1}: {q['question']} {'✅' if is_correct else '❌'}"):
-                        st.write(f"**Bạn chọn:** {u_ans}")
-                        st.write(f"**Đáp án:** {correct_val}")
-                        st.info(f"💡 **Giải thích:** {explanation}")
-except: st.info("Chưa có dữ liệu.")
+
